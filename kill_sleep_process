@@ -1,0 +1,24 @@
+## Cron used script only one min, kill sleep process in two databases if time > 15 in base or 150 in base1 
+
+#!/usr/local/bin/php
+<?php
+$connection = mysql_connect('localhost','nm' ,'ps');
+define ( 'MAX_SLEEP_TIME_W', 15 );
+define ( 'MAX_SLEEP_TIME_B', 150 );
+
+$result = mysql_query ( "select * from INFORMATION_SCHEMA.PROCESSLIST where db = 'base' or db = 'base1'") or die ("query kill sleep bases ".mysql_error());
+   while ($proc = mysql_fetch_assoc($result)) {
+     if (($proc["COMMAND"] == "Sleep") && ($proc["TIME"] > MAX_SLEEP_TIME_W) && ($proc["DB"] == "base")) {
+        mysql_query ("KILL " . $proc["ID"]) or die("kill problem: ".mysql_error());
+        $display = date('Y-m-d H:i:s')." KILL base ".$proc["ID"].PHP_EOL;
+        echo $display;
+     }
+     if (($proc["COMMAND"] == "Sleep") && ($proc["TIME"] > MAX_SLEEP_TIME_B) && ($proc["DB"] == "base1")) {
+        mysql_query ("KILL " . $proc["ID"]) or die("kill problem: ".mysql_error());
+        $display = date('Y-m-d H:i:s')." KILL base1 ".$proc["ID"].PHP_EOL;
+        echo $display;
+     }
+
+   }
+mysql_close($connection);
+?>
