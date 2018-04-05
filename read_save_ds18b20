@@ -1,0 +1,79 @@
+## Read and save temperature to mysql (DS18B20 sensor) Cron on raspberry pi only one min
+
+#!/usr/bin/php
+<?php
+
+$mysqli = new mysqli("localhost", "temperature", "pass", "login");
+if ($mysqli->connect_errno) {
+    echo "Failed to connect to MySQL: (" . $mysqli->connect_errno . ") " . $mysqli->connect_error;
+}
+
+$current_date = date('Y-m-d h:i:s');
+
+$dir_parent='/sys/bus/w1/devices/';
+
+$dirs_parent = scandir($dir_parent);
+
+$file = '/w1_slave';
+
+$array_return_string = array();
+
+$re = '/t=([0-9]+)|(YES)/';
+
+$nr = 2;
+
+for($i=1;$i<=4;$i++){
+        if(substr($dir_parent.$dirs_parent[$nr], 20, 2) == 28){
+                ${'dir_child_'.$i} = $dir_parent.$dirs_parent[$nr].$file;
+                $nr++;
+                ${"exec_sensor_".$i} = ${"dir_child_".$i};
+
+                $exec = ${"exec_sensor_".$i};
+
+                $execute = shell_exec("cat $exec");
+
+                preg_match_all($re, $execute, $matches, PREG_SET_ORDER, 0);
+
+                if($matches[0][0] == "YES"){
+                        array_push($array_return_string, number_format($matches[1][1]));
+                }else{
+                        echo $current_date.' Odczyt nieudany !'.PHP_EOL;
+                        array_push($array_return_string, 0);
+                }
+        }else{
+                echo $current_date.' Brak czujnika'.PHP_EOL;
+        }
+}
+
+$return_array_object = (object)$array_return_string;
+
+if(isset($argv[1]) && ($argv[1] == "read")){
+        $msg = "";
+        $sensor = $argv[2];
+        (float)$value = str_replace(",",".",$array_return_string[$sensor]);
+        if($value != ''){
+                $msg = "$value\n$value\non\non\n";
+        }else{
+                $msg = "Blad odczytu dla czujnika: $sensor : $value";
+        }
+        echo $msg;
+}else{
+
+foreach($return_array_object as $key=>$value){
+         echo $current_date.' -> '.$key.'=>'.$value.PHP_EOL;
+         $result_count = $mysqli->query("select count(*) from current_temperature where sensor='$key'");
+         if($result_count->fetch_assoc()['count(*)'] == 1){
+                if (!$mysqli->query("update current_temperature set value='$value', date='$current_date' where sensor='$key'")) {
+                        printf("Error: %s\n", $mysqli->error);
+                }
+         }else{
+                if (!$mysqli->query("insert into current_temperature(sensor, value, date) values('$key', '$value', '$current_date')")) {
+                        printf("Error: %s\n", $mysqli->error);
+                }
+         }
+}
+}
+
+$mysqli->close();
+
+?>
