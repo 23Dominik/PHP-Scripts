@@ -1,4 +1,4 @@
-## Read and save temperature to mysql (DS18B20 sensor) Cron on raspberry pi only one min
+## Read and save temperature to mysql (4x DS18B20 sensor) Cron on raspberry pi only one min
 
 #!/usr/bin/php
 <?php
